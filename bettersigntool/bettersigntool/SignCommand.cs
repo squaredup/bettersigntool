@@ -249,8 +249,16 @@ namespace bettersigntool
         {
             TimeSpan retryWait = InitialRetryWait;
 
-            for (int attempt = 1; attempt <= MaximumFileAttempts; attempt++)
+            int attempt = 1;
+
+            do
             {
+                if (attempt > 1)
+                {
+                    Console.WriteLine($"Performing attempt #{attempt} of {MaximumFileAttempts} after {retryWait.TotalSeconds}s...");
+                    Thread.Sleep((int)retryWait.TotalMilliseconds);
+                }
+
                 if (RunSigntool(filename))
                 {
                     Console.WriteLine($"Signed OK: {filename}");
@@ -260,16 +268,13 @@ namespace bettersigntool
                     return true;
                 }
 
-                Console.WriteLine($"Retrying after {retryWait.TotalSeconds}s...");
-
-                // Wait for the retry interval to elapse, then prepare the backoff exponent for next time we fail
-                //
-                Thread.Sleep((int)retryWait.TotalMilliseconds);
-
+                attempt++;
+                
                 retryWait = TimeSpan.FromSeconds(Math.Pow(retryWait.TotalSeconds, BackoffExponent));
-            }
 
-            Console.WriteLine($"Failed to sign {filename}: Maximum of {MaximumFileAttempts} retries exceeded");
+            } while(attempt <= MaximumFileAttempts);
+
+            Console.WriteLine($"Failed to sign {filename}: Maximum of {MaximumFileAttempts} attempts exceeded");
 
             return false;
         }
