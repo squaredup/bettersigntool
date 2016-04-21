@@ -25,11 +25,14 @@ The .txt extension is automatically detected on the input file and the tool beha
 e.g.
 
 **myfile.txt**
-`bin/file.dll`
-`bin/file2.dll`
+
+	bin/file.dll
+	bin/file2.dll
+
 
 **Calling arguments**
-`bettersigntool -d "Organisation Name" -du "http://mycompany.com" -f "C:\my.pfx" -p "password" -I myfile.txt`
+
+	bettersigntool -d "Organisation Name" -du "http://mycompany.com" -f "C:\my.pfx" -p "password" -I myfile.txt
 
 Both `file.dll` and `file2.dll` will be signed as a result of the above
 
