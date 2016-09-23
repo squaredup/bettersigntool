@@ -85,6 +85,66 @@ namespace bettersigntool
         }
 
         /// <summary>
+        /// Gets or sets the file digest.
+        /// </summary>
+        /// <value>
+        /// The file digest.
+        /// </value>
+        public string FileDigest
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// Gets or sets the name of the subject.
+        /// </summary>
+        /// <value>
+        /// The name of the subject.
+        /// </value>
+        public string SubjectName
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// Gets or sets the RFC3161 time server.
+        /// </summary>
+        /// <value>
+        /// The RFC3161 time server.
+        /// </value>
+        public string Rfc3161TimeServer
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether [append signature].
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if [append signature]; otherwise, <c>false</c>.
+        /// </value>
+        public bool AppendSignature
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether this <see cref="SignCommand"/> is verbose.
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if verbose; otherwise, <c>false</c>.
+        /// </value>
+        public bool Verbose
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
         /// Whether to show errors on failure (may leak passwords)
         /// </summary>
         public bool ShowErrors
@@ -150,7 +210,27 @@ namespace bettersigntool
             HasOption("Z|sdkpath=",
                 "The signtool.exe SDK path.  If omitted, falls back to the 64-bit Windows 8.1 SDK.",
                 ssp => SigntoolPath = ssp);
-            
+
+            HasOption("fd|filedigest=",
+                "Specifies the file digest algorithm to use to create file signatures. The default algorithm is Secure Hash Algorithm (SHA-1).",
+                fd => FileDigest = fd);
+
+            HasOption("n|subjectname=",
+                "Specifies the name of the subject of the signing certificate. This value can be a substring of the entire subject name.",
+                n => SubjectName = n);
+
+            HasOption("tr|rfc3161timeserver=",
+                "Specifies the RFC 3161 time stamp server's URL. If this option (or /t) is not specified, the signed file will not be time stamped. A warning is generated if time stamping fails. This switch cannot be used with the /t switch.",
+                tr => Rfc3161TimeServer = tr);
+
+            HasOption("as|appendsignature",
+                "Appends this signature. If no primary signature is present, this signature is made the primary signature.",
+                a => AppendSignature = String.IsNullOrEmpty(a) ? false : true);
+
+            HasOption("v|verbose",
+                "Displays verbose output for successful execution, failed execution, and warning messages..",
+                v => Verbose = String.IsNullOrEmpty(v) ? false : true);
+
 
             // Fallback to Verisign
             //
@@ -286,16 +366,42 @@ namespace bettersigntool
         /// <returns>success/failure flag for the signing of the assembly</returns>
         private bool RunSigntool(string filename)
         {
-            string[] arguments = new string[]
+            List<string> arguments = new List<string>
             {
                 "sign",
                 $"/d \"{Description}\"",
                 $"/du \"{Url}\"",
                 $"/t \"{TimestampServer}\"",
                 $"/f \"{CertificateFile}\"",
-                $"/p \"{PfxPassword}\"",
-                $"\"{filename}\""
+                $"/p \"{PfxPassword}\""
             };
+
+            if (AppendSignature)
+            {
+                arguments.Add("/as");
+            }
+
+            if (Verbose)
+            {
+                arguments.Add("/v");
+            }
+
+            if (!String.IsNullOrEmpty(SubjectName))
+            {
+                arguments.Add($"/n \"{SubjectName}\"");
+            }
+
+            if (!String.IsNullOrEmpty(Rfc3161TimeServer))
+            {
+                arguments.Add($"/tr \"{Rfc3161TimeServer}\"");
+            }
+
+            if (!String.IsNullOrEmpty(FileDigest))
+            {
+                arguments.Add($"/fd \"{FileDigest}\"");
+            }
+
+            arguments.Add($"\"{filename}\"");
 
             string flatArguments = String.Join(" ", arguments);
             string flatProcessAndArguments = $"\"{SigntoolPath}\" {flatArguments}";
