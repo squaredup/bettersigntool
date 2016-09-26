@@ -133,12 +133,48 @@ namespace bettersigntool
         }
 
         /// <summary>
+        /// Gets or sets the filters.
+        /// </summary>
+        /// <value>
+        /// The filters.
+        /// </value>
+        public List<string> Filters
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// Gets or sets the raw filters.
+        /// </summary>
+        /// <value>
+        /// The raw filters.
+        /// </value>
+        public string RawFilters
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
         /// Gets or sets a value indicating whether this <see cref="SignCommand"/> is verbose.
         /// </summary>
         /// <value>
         ///   <c>true</c> if verbose; otherwise, <c>false</c>.
         /// </value>
         public bool Verbose
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// Gets or sets the file dir path.
+        /// </summary>
+        /// <value>
+        /// The file dir path.
+        /// </value>
+        public string FileDirPath
         {
             get;
             set;
@@ -184,11 +220,8 @@ namespace bettersigntool
         {
             IsCommand("sign", "Sign an assembly using a specified key file and timestamp server");
 
-            this.SkipsCommandSummaryBeforeRunning();
+            this.SkipsCommandSummaryBeforeRunning();            
             
-            HasRequiredOption("I|input=", "The input file to sign. If the input is a .txt, it " +
-                                         "is assumed to be a list of input files to sign.", i => InputFile = i);
-
             HasRequiredOption("d|description=", "Content description, often matches company/vendor name.",
                 d => Description = d);
 
@@ -231,6 +264,33 @@ namespace bettersigntool
                 "Displays verbose output for successful execution, failed execution, and warning messages..",
                 v => Verbose = String.IsNullOrEmpty(v) ? false : true);
 
+            HasOption("I|input=", "The input file to sign. If the input is a .txt, it " +
+                                  "is assumed to be a list of input files to sign. This switch is mutual exclusive with -I option.", 
+                i => InputFile = i);
+
+            HasOption("fp|filedirpath=",
+                "Specifies the dir path used to look for files to sign. This switch must be specified together with -fl option.",
+                fp => FileDirPath = fp);
+
+            HasOption("fl|filefilters=",
+                "Comma separated filters used to search for files to sign. The search string to match against the names of files in path. This parameter can contain a combination of valid literal path and wildcard (* and ?) " +
+                "characters, but doesn't support regular expressions.This switch is mutual exclusive with -I option.",
+                fl =>
+                {
+                    RawFilters = fl;
+                    Filters = new List<string>();
+
+                    var s = fl.Split(new char[] { ',' });
+
+                    if (s != null && s.Length > 0)
+                    {
+                        foreach (var item in s)
+                        {
+                            this.Filters.Add(item.Trim());
+                        }
+                    }
+                });
+
 
             // Fallback to Verisign
             //
@@ -251,7 +311,40 @@ namespace bettersigntool
             InitialRetryWait = TimeSpan.FromSeconds(3);
             BackoffExponent = 1.5;
         }
-        
+
+        public override void CheckRequiredArguments()
+        {
+            if (string.IsNullOrEmpty(InputFile))
+            {
+                if (string.IsNullOrEmpty(RawFilters) && string.IsNullOrEmpty(FileDirPath))
+                {
+                    // At least a search switch must be specified.
+                    throw new ConsoleHelpAsException("-I switch or -fl switch are missing. Please specify one switch of the two available.");
+                }
+                else if (!string.IsNullOrEmpty(RawFilters) && string.IsNullOrEmpty(FileDirPath))
+                {
+                    // Filter switch specified w/o a dir path specified 
+                    throw new ConsoleHelpAsException("-fp switch are missing. -fp switch must be specified together with -fl switch.");
+                }
+                else if (string.IsNullOrEmpty(RawFilters) && !string.IsNullOrEmpty(FileDirPath))
+                {
+                    // Dir path specified w/o a filter switch specified
+                    throw new ConsoleHelpAsException("-fl switch are missing. -fl switch must be specified together with -fp switch.");
+                }
+                else if (!Directory.Exists(FileDirPath))
+                {
+                    throw new ConsoleHelpAsException($"The specified directory '{FileDirPath}' does not exists.");
+                }
+            }
+            else if (!string.IsNullOrEmpty(RawFilters) || !string.IsNullOrEmpty(FileDirPath))
+            {
+                // Too many filter search specified.
+                throw new ConsoleHelpAsException("Too many search switch specified. -I switch and -fl (-fp) switches are mutual exclusive. Please specify only one switch only.");
+            }
+
+            base.CheckRequiredArguments();
+        }
+
         public override int Run(string[] remainingArguments)
         {
             if (!File.Exists(SigntoolPath))
@@ -262,13 +355,29 @@ namespace bettersigntool
 
             // If the file we're signing is a .txt, then we're actually signing a *list* of files
             //
-            if (FileList.IsFileList(InputFile))
+            if (    (!string.IsNullOrEmpty(InputFile) && FileList.IsFileList(InputFile)) 
+                ||  !string.IsNullOrEmpty(FileDirPath))
             {
                 int errors = 0;
 
                 CountdownEvent countdown = new CountdownEvent(1);
 
-                List<string> files = FileList.Load(InputFile);
+                List<string> files = new List<string>();
+
+                if (!string.IsNullOrEmpty(FileDirPath))
+                {
+                    DirectoryInfo d = new DirectoryInfo(FileDirPath);
+                    foreach (var filter in Filters)
+                    {
+                        files.AddRange(d.GetFiles(filter)
+                                        .ToList()
+                                        .ConvertAll<string>(f => f.FullName));
+                    }
+                }
+                else
+                {
+                    files = FileList.Load(InputFile);
+                }
 
                 foreach (string file in files)
                 {
@@ -400,7 +509,7 @@ namespace bettersigntool
             {
                 arguments.Add($"/fd \"{FileDigest}\"");
             }
-
+            
             arguments.Add($"\"{filename}\"");
 
             string flatArguments = String.Join(" ", arguments);
