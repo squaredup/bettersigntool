@@ -97,6 +97,15 @@ namespace bettersigntool
         }
 
         /// <summary>
+        /// The digest (hash) for performing the timestamping. 
+        /// </summary>
+        public string TimestampDigest
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
         /// Gets or sets the name of the subject.
         /// </summary>
         /// <value>
@@ -214,6 +223,10 @@ namespace bettersigntool
             HasOption("fd|filedigest=",
                 "Specifies the file digest algorithm to use to create file signatures. The default algorithm is Secure Hash Algorithm (SHA-1).",
                 fd => FileDigest = fd);
+
+            HasOption("td|timedigest=",
+                "Specifies the file digest algorithm to use to timestamp the file(s). The default algorithm is Secure Hash Algorithm (SHA-1).",
+                td => TimestampDigest = td);
 
             HasOption("n|subjectname=",
                 "Specifies the name of the subject of the signing certificate. This value can be a substring of the entire subject name.",
@@ -371,7 +384,6 @@ namespace bettersigntool
                 "sign",
                 $"/d \"{Description}\"",
                 $"/du \"{Url}\"",
-                $"/t \"{TimestampServer}\"",
                 $"/f \"{CertificateFile}\"",
                 $"/p \"{PfxPassword}\""
             };
@@ -391,14 +403,23 @@ namespace bettersigntool
                 arguments.Add($"/n \"{SubjectName}\"");
             }
 
-            if (!String.IsNullOrEmpty(Rfc3161TimeServer))
+            if (String.IsNullOrEmpty(Rfc3161TimeServer))
             {
+                arguments.Add($"/t \"{TimestampServer}\"");
+            }
+            else
+            { 
                 arguments.Add($"/tr \"{Rfc3161TimeServer}\"");
             }
 
             if (!String.IsNullOrEmpty(FileDigest))
             {
                 arguments.Add($"/fd \"{FileDigest}\"");
+            }
+
+            if (!String.IsNullOrEmpty(TimestampDigest))
+            {
+                arguments.Add($"/td \"{TimestampDigest}\"");
             }
 
             arguments.Add($"\"{filename}\"");
