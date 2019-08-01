@@ -165,11 +165,7 @@ namespace bettersigntool
         /// <summary>
         /// Maximum number of attempts per file
         /// </summary>
-        public int MaximumFileAttempts
-        {
-            get;
-            set;
-        }
+        public int MaximumFileAttempts { get; set; } = 3;
 
         /// <summary>
         /// After the initial failure of signing, we wait this long before trying again
@@ -244,6 +240,9 @@ namespace bettersigntool
                 "Displays verbose output for successful execution, failed execution, and warning messages..",
                 v => Verbose = String.IsNullOrEmpty(v) ? false : true);
 
+            HasOption("ma|MaxFileAttempts=",
+                "The maximum number of attempts to sign each file, should a timeout occur. If ommited, 3 is used.",
+                ma => MaximumFileAttempts = int.Parse(ma));
 
             // Fallback to Verisign
             //
@@ -260,7 +259,6 @@ namespace bettersigntool
                     @"Windows Kits\8.1\bin\x64\signtool.exe");
             }
 
-            MaximumFileAttempts = 3;
             InitialRetryWait = TimeSpan.FromSeconds(3);
             BackoffExponent = 1.5;
         }
@@ -346,11 +344,8 @@ namespace bettersigntool
 
             do
             {
-                if (attempt > 1)
-                {
-                    Console.WriteLine($"Performing attempt #{attempt} of {MaximumFileAttempts} after {retryWait.TotalSeconds}s...");
-                    Thread.Sleep((int)retryWait.TotalMilliseconds);
-                }
+                Console.WriteLine($"Performing attempt #{attempt} of {MaximumFileAttempts} after {retryWait.TotalSeconds}s...");
+                Thread.Sleep((int)retryWait.TotalMilliseconds);
 
                 if (RunSigntool(filename))
                 {
