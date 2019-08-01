@@ -344,8 +344,11 @@ namespace bettersigntool
 
             do
             {
-                Console.WriteLine($"Performing attempt #{attempt} of {MaximumFileAttempts} after {retryWait.TotalSeconds}s...");
-                Thread.Sleep((int)retryWait.TotalMilliseconds);
+                if (attempt > 1) 
+                {
+                    Console.WriteLine($"Performing attempt #{attempt} of {MaximumFileAttempts} after {retryWait.TotalSeconds}s...");
+                    Thread.Sleep((int)retryWait.TotalMilliseconds);
+                }
 
                 if (RunSigntool(filename))
                 {
