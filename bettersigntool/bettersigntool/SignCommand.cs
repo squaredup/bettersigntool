@@ -260,7 +260,7 @@ namespace bettersigntool
             }
 
             InitialRetryWait = TimeSpan.FromSeconds(3);
-            BackoffExponent = 1.5;
+            BackoffExponent = 2;
         }
         
         public override int Run(string[] remainingArguments)
@@ -338,33 +338,30 @@ namespace bettersigntool
         /// <returns>success/failure of the signing </returns>
         private bool DoSign(string filename)
         {
-            TimeSpan retryWait = InitialRetryWait;
-
-            int attempt = 1;
-
-            do
+            double retryWait = InitialRetryWait.TotalSeconds;
+            Random random = new Random();
+            
+            for (var attempt = 1; attempt <= MaximumFileAttempts; attempt++)
             {
                 if (attempt > 1) 
                 {
-                    Console.WriteLine($"Performing attempt #{attempt} of {MaximumFileAttempts} after {retryWait.TotalSeconds}s...");
-                    Thread.Sleep((int)retryWait.TotalMilliseconds);
+                    // exponential backoff with jitter to between half and max delay for this attempt
+                    retryWait *= BackoffExponent;
+                    TimeSpan jitteredRetry = TimeSpan.FromSeconds(retryWait / 2 + random.NextDouble() * retryWait / 2);
+                    
+                    Console.WriteLine($"Performing attempt #{attempt} of {MaximumFileAttempts} after {jitteredRetry.TotalSeconds}s...");
+                    Thread.Sleep((int)jitteredRetry.TotalMilliseconds);
                 }
 
                 if (RunSigntool(filename))
                 {
-                    Console.WriteLine($"Signed OK: {filename}");
-
+                    Console.WriteLine($"Signed OK: ${filename}");
+                    
                     // Instantaneous success (no retries required)
-                    //
                     return true;
                 }
-
-                attempt++;
-                
-                retryWait = TimeSpan.FromSeconds(Math.Pow(retryWait.TotalSeconds, BackoffExponent));
-
-            } while(attempt <= MaximumFileAttempts);
-
+            }
+            
             Console.WriteLine($"Failed to sign {filename}: Maximum of {MaximumFileAttempts} attempts exceeded");
 
             return false;

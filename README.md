@@ -44,5 +44,7 @@ As mentioned above, bettersigntool supports retry with exponential back-off. By 
 The default behaviour is currently:
 
 * Signing will be attempted a *total* of 3 times (i.e. 1 initial attempt, 2 retries)
-* Initial retry delay is 3 seconds (3000ms)
-* Back-off occurs with an exponent of 1.5 (wait 3 seconds, 5.196 seconds, finally 11.844 seconds)
+* Initial base is 6 seconds (6000ms), with an exponent of 2 for each subsequent attempt
+* Each back-off delay is jittered to between 50-100% of base
+* Initial delay is between 3-6 seconds (6000ms)
+* Second delay is between 6 and 12 seconds
