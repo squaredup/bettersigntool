@@ -355,7 +355,7 @@ namespace bettersigntool
 
                 if (RunSigntool(filename))
                 {
-                    Console.WriteLine($"Signed OK: ${filename}");
+                    Console.WriteLine($"Signed OK: {filename}");
                     
                     // Instantaneous success (no retries required)
                     return true;
